@@ -1,0 +1,21 @@
+ID,Bug Line,Explanation
+2,3,Invalid vForceRange 35.
+3,4,vForce exceeds vForceRange.
+4,3,iClamp swapped args: low=50 > high=-50.
+9,3,Duplicate method .end().end()
+10,4,Invalid function 'getHumanSeniority()' - corrupted/gibberish API name.
+11,2,Typo 'iMeans()' should be 'iMeas()'.
+13,3,Invalid function 'getVesjkctor()' - corrupted/gibberish API name.
+14,7,getAlarmValue requires pin name.
+16,1,vecEditMode must be TA::VTT.
+17,8,Invalid function 'getFFC()' - corrupted/gibberish API name.
+20,5,samples() exceeds max 8192.
+22,3,readTempThresh() takes no params.
+23,25,rdi.burstUpload.smartVec should be rdi.smartVec().burstUpload().
+24,3,"Line 3: invalid_method_call - The method chain ends with '.interS' which is not a defined RDI API method; likely a typo or incomplete call, causing a compile-time error."
+25,5,RDI_END() called before RDI_BEGIN(). Lifecycle reversed.
+26,10,"Wrong terminal method, should be execute()."
+27,2,Typo 'imeasRange()' should be 'iMeasRange()'.
+29,4,retrievePmuxPinStatus should be OUTSIDE RDI block.
+31,5,Typo 'push_forward()' should be 'push_back()'.
+32,3,"Line 3: multiple_burst_calls - After calling func().burst(""label""), a second burst() is invoked, which is not allowed by the RDI API for multi‑port bursts."

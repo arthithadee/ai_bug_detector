@@ -1,0 +1,341 @@
+ID,Explanation,Context,Code,Correct Code
+16,"Use only the VTT mode for editing vectors when rdi.smartVec().label().copyLabel() is
+used for the label",mode for editing vectors at runtime,"rdi.smartVec().vecEditMode(TA::VECD);
+
+RDI_BEGIN();
+rdi.smartVec()
+    .label(""sLabel"").copyLabel(false).pin(A)
+    .writeData(""rt"", 8, 0)
+    .execute();
+
+rdi.smartVec()
+    .label(""sLabel"").copyLabel(false).pin(A)
+    .writeData(""rt"", 8, 8)
+    .execute(); // 
+RDI_END();","rdi.smartVec().vecEditMode(TA::VTT);
+
+RDI_BEGIN();
+rdi.smartVec()
+    .label(""sLabel"").copyLabel(false).pin(A)
+    .writeData(""rt"", 8, 0)
+    .execute();
+
+rdi.smartVec()
+    .label(""sLabel"").copyLabel(false).pin(A)
+    .writeData(""rt"", 8, 8)
+    .execute(); // 
+RDI_END();"
+32,BUG : Port name & pin config mismatch instead of execute it will burst twice,"rdi.port(TA::MULTI_PORT).func()
+This function allows multi-port labels to be combined to form a new burst. It is used for
+dynamic mode in the func() class only.Multi-port burst with .port(TA::MULTI_PORT)","RDI_BEGIN();
+rdi.port(""pt1"").dc().pin(""dig2"").vForce(1 uA).burst();
+rdi.port(TA::MULTI_PORT).func().burst(""MPBurst2"").burst(); // n
+rdi.port(""pt2"").digCap().pin(""dig1"").samples(8).execute();
+rdi.port(TA::MULTI_PORT).func().burst(""MPBurst1"").burst();
+RDI_END();","RDI_BEGIN();
+rdi.port(""pt1"").dc().pin(""dig"").vForce(1 V).execute();
+rdi.port(TA::MULTI_PORT).func().burst(""MPBurst1"").execute(); // n
+rdi.port(""pt2"").digCap().pin(""dig2"").samples(8).execute();
+RDI_END();"
+25,"BUG : Replacing the lifecycle order 
+and calling RDI_END before RDI_BEGIN inverts 
+the intended session/transaction scope and 
+will typically cause runtime failures or no-ops.","rdi.protocol().write()
+Writes a piece of data on a specified address at runtime","ARRAY_I write_data(2); // Define a variable for a dual-site test
+write_data[0]=0x1;
+write_data[1]=0x2;
+rdi.runTimeVal(""data"",write_data); // Site data array
+RDI_END();
+rdi.protocol().pname(""i2c"").write(0x4,""data"").execute();
+RDI_BEGIN();","ARRAY_I write_data(2);
+write_data[0]=0x1;
+write_data[1]=0x2;
+rdi.runTimeVal(""data"",write_data); // Site data array
+RDI_BEGIN();
+rdi.protocol().pname(""i2c"").write(0x4,""data"").execute();
+RDI_END();"
+10,changed the function names,"Reads the actual measured humidity of the selected PMUX card from the hardware and
+stores it into a software cache.","RDI_BEGIN();
+rdi.pmux(4).module(""02"").readHumanSeniority().execute();
+RDI_END();
+int hum = rdi.id(4).getHumanSeniority(""02"");","RDI_BEGIN();
+rdi.pmux(4).module(""02"").readHumSensor().execute();
+RDI_END();
+int hum = rdi.id(4).getHumSensor (""02"");"
+26,"Measurement binding/order bug on Pin2.
+Specifics: iMeas() is applied immediately after the first group (waveform + repeat), before the additional groups are appended then instead of execute it will read().","rdi.dc().addWaveform()
+Adds one or more waveforms in an execute() operation.
+This function supports digital cards and DC Scale cards (PMU and DPS operating
+modes).","anaWaveform wav1(""wav1""), wav2(""wav2""), wav3(""wav3"");
+RDI_BEGIN();
+rdi.dc().pin(""Pin1"").vForce().waveform(wav1)
+  .addWaveform(wav2)
+  .addWaveform(wav3, 2)      // Add ""wav3"" twice
+  .FS(250 /* kHz */).execute();
+rdi.dc().pin(""Pin2"").vForce().waveform(wav1).repeat(2)
+  .iMeas()                   
+  .addWaveform(wav2, 3)      // Add ""wav2"" three times (group 2..4)
+  .FS(250 /* kHz */).read();
+RDI_END();","anaWaveform wav1(""wav1""), wav2(""wav2""), wav3(""wav3"");
+RDI_BEGIN();
+ rdi.dc().pin(""Pin1"").vForce().waveform(wav1)
+ .addWaveform(wav2).addWaveform(wav3,2) // Add ""wav2"" once and
+ .FS(250 kHz).execute();
+ rdi.dc().pin(""Pin2"").vForce().waveform (wav1).repeat(2)
+ .addWaveform(wav2,3).iMeas() // Add ""wav2"" three times and me
+ .FS(250 kHz).execute();
+RDI_END();"
+23,the order of function calling is smartVec().burstUpload(), burstUpload will help to reduce the result uploading time. The results of multiple smartVec read commands,"// You can get a combined result of all readBit()/readData() inside
+ON_FIRST_INVOCATION_BEGIN();
+
+rdi.smartVec().readMode(TA::EMAP); // TA::DIGCAP
+
+RDI_BEGIN();
+rdi.smartVec(""id"").burstUpload().begin();
+
+rdi.smartVec(id1)
+    .pin(""DATA2"").readBit(2, 2)
+    .execute();
+
+rdi.smartVec(id2)
+    .pin(""DATA2"").readBit(4, 4)
+    .execute();
+
+rdi.smartVec(id3)
+    .pin(""DATA4"").readData(8, 8)
+    .execute();
+
+rdi.smartVec(id4)
+    .pin(""DATA4"").readData(8, 12)
+    .execute();
+
+rdi.burstUpload.smartVec().end();
+RDI_END();
+
+ON_FIRST_INVOCATION_END();
+
+ARRAY_I bitResult = rdi.id(""id"").getReadBit(""DATA2"");
+ARRAY_LL dataResult = rdi.id(""id"").getReadData(""DATA4"");","// You can get a combined result of all readBit()/readData() inside
+ON_FIRST_INVOCATION_BEGIN();
+
+rdi.smartVec().readMode(TA::EMAP); // TA::DIGCAP
+
+RDI_BEGIN();
+rdi.smartVec(""id"").burstUpload().begin();
+
+rdi.smartVec(id1)
+    .pin(""DATA2"").readBit(2, 2)
+    .execute();
+
+rdi.smartVec(id2)
+    .pin(""DATA2"").readBit(4, 4)
+    .execute();
+
+rdi.smartVec(id3)
+    .pin(""DATA4"").readData(8, 8)
+    .execute();
+
+rdi.smartVec(id4)
+    .pin(""DATA4"").readData(8, 12)
+    .execute();
+
+rdi.smartVec().burstUpload().end();
+RDI_END();
+
+ON_FIRST_INVOCATION_END();
+
+ARRAY_I bitResult = rdi.id(""id"").getReadBit(""DATA2"");
+ARRAY_LL dataResult = rdi.id(""id"").getReadData(""DATA4"");"
+4,iClamp low and high values are exchanged,method order of arguments,"rdi.alarm().pin(m_rMcd.sP_VS).enable(true);        //turn on VS alarm
+            //go back to default voltage
+            rdi.dc().pin(m_rMcd.sP_VS).vForce(31 V).vForceRange(30 V).iForceRange(50 mA).iClamp(50 mA, -50 mA)
+                    .pin(m_rMcd.sP_LIN).vForce(13.5 V).vForceRange(30 V).iForceRange(5 uA).iClamp(-5 uA, 5 uA)
+                    .execute();
+            rdi.wait(1 ms);","rdi.alarm().pin(m_rMcd.sP_VS).enable(true);        //turn on VS alarm
+            //go back to default voltage
+            rdi.dc().pin(m_rMcd.sP_VS).vForce(31 V).vForceRange(30 V).iForceRange(50 mA).iClamp(-50 mA, 50 mA)
+                    .pin(m_rMcd.sP_LIN).vForce(13.5 V).vForceRange(30 V).iForceRange(5 uA).iClamp(-5 uA, 5 uA)
+                    .execute();
+            rdi.wait(1 ms);"
+31,"BUG : Logical api changes (push_forward >> push_back , port name at intaialization is different from runTimeVAL & synatax of id changed to idd )","rdi.func().burstRunTime()
+Creates an empty burst label and specifies the maximum number of labels to be
+patched.
+SmartRDI uses this function to generate an empty burst label and then applies the
+firmware command SQPG to patch the burst content","vector<string> vec_port1;
+vec_port1.burst();
+vec_port1.push_back(""label3"");
+vec_port2.push_back(""label7"");
+vec_port1.push_forward(""label25"");
+vec_port2.push_forward(""label31"");
+rdi.runTimeVal(""rt"",vec_port2); // The label to be patched into the
+RDI_BEGIN();
+rdi.port(""A"").func(""idd"").burstRunTime(""rt"",200).execute();
+RDI_END();
+ARRAY_I ary = rdi.id(""idd"").getMultiPassFail();","vector<string> vec_port1;
+vec_port1.clear();
+vec_port1.push_back(""label3"");
+vec_port1.push_back(""label7"");
+vec_port1.push_back(""label25"");
+vec_port1.push_back(""label31"");
+rdi.runTimeVal(""rt"",vec_port1); // The label to be patched into the
+RDI_BEGIN();
+rdi.port(""A"").func(""id"").burstRunTime(""rt"",200).execute();
+RDI_END();
+ARRAY_I ary = rdi.id(""id"").getMultiPassFail();"
+17,to get first filed vector the function used is getFFV(),getting the first fail vector.,"RDI_BEGIN();
+rdi.emap(""a"")
+    .label(""label2"").pin(""pB"")
+    .FFV(10)
+    .execute();
+RDI_END();
+
+int iffv = rdi.id(""a"").getFFC();","RDI_BEGIN();
+rdi.emap(""a"")
+    .label(""label2"").pin(""pB"")
+    .FFV(10)
+    .execute();
+RDI_END();
+
+int iffv = rdi.id(""a"").getFFV();"
+27,"BUGS:
+- Pin list changed to ""DPS_0,DPS_1"" (mismatch with configured pins)
+- Method name changed to ""imeas()"" (incorrect casing/API)
+- Operation changed from ""execute()"" to ""write()"" (wrong semantics in DC measurement chain)","rdi.dc().iMeasRange()
+Specifies a current measurement range.SmartRDI will check the time between iMeasRange() and the next event on the pin. ","RDI_BEGIN();
+rdi.dc().pin(""DPS_1,DPS_2"").imeasRange(100 uA);
+rdi.dc().pin(""DPS_1,DPS_2"").vForce(0.01 V);
+rdi.wait(3 ms);
+rdi.dc(""im1"").pin(""DPS_0,DPS_1"").imeas().write();
+RDI_END();","RDI_BEGIN();
+rdi.dc().pin(""DPS_1,DPS_2"").iMeasRange(100 uA);
+rdi.dc().pin(""DPS_1,DPS_2"").vForce(0.01 V);
+rdi.wait(3 ms);
+rdi.dc(""im1"").pin(""DPS_1,DPS_2"").iMeas().execute();
+RDI_END();"
+24,"BUG: Pin name typo — using ""D0"" (digit zero) instead of ""DO"" (letter O).
+This will capture data on pin ""D0"", but later we try to read from ""DO"".
+
+Later, we attempt to retrieve the captured vector from pin ""DO"" (letter O).
+Because the capture used ""D0"", this lookup will not match and may return empty or error.","Generating a new digital capture pattern
+with SmartRDI.Digital capture without hidden upload","ON_FIRST_INVOCATION_BEGIN();
+RDI_BEGIN();
+rdi.digCap(""cap"").pin(""D0"").samples(100).initDiscard(10).interS;
+RDI_END();
+ON_FIRST_INVOCATION_END();
+const ARRAY_I& aiData = rdi.id(""cap"").getVector(""DO"");","ON_FIRST_INVOCATION_BEGIN();
+RDI_BEGIN();
+rdi.digCap(""cap"").pin(""DO"").samples(100).initDiscard(10).interS
+RDI_END( );
+ON_FIRST_INVOCATION_END();
+const ARRAY_I& aiData = rdi.id(""cap"").getVector(""DO"");"
+14,here getAlarmValue() takes a parameter sPin ,Getting alarm DC results on specific pins,"RDI_BEGIN();
+...
+rdi.dc(""a"").pin(""dig"").iForce(0).vMeas().execute(); 
+...
+RDI_END();
+
+double dVal = rdi.id(""a"").getAlarmValue();
+ARRAY_D aryVal = rdi.id(""a"").getAlarmBurstValue(""AVI"");","RDI_BEGIN();
+...
+rdi.dc(""a"").pin(""dig"").iForce(0).vMeas().execute(); 
+...
+RDI_END();
+
+double dVal = rdi.id(""a"").getAlarmValue(""AVI"");
+ARRAY_D aryVal = rdi.id(""a"").getAlarmBurstValue(""AVI"");"
+9,Used same function twice,System-reserved waiting in cogo,"rdi.cogo().node(""this"").passNode(""id1"").failNode(""id2"").begin();
+rdi.cogo().wait(100 us);
+rdi.cogo().end().end();","rdi.cogo().node(""this"").passNode(""id1"").failNode(""id2"").begin();
+rdi.cogo().wait(100 us);
+rdi.cogo().node().end();"
+13,Changed all the function names to random strings,"Hidden upload in CCTestMethod_ISR
+The code example below describes how to use the hidden upload feature in"," SMC_BackgroundProcessing()
+{
+rdi.id(""cap"").getVesjkctor();
+rdi.id(""idd"").getVslkhalue();
+rdi.id(""dgr"").getWlkjnaveform();
+}"," SMC_BackgroundProcessing()
+{
+rdi.id(""cap"").getVector();
+rdi.id(""idd"").getValue();
+rdi.id(""dgr"").getWaveform();
+}"
+22,there are no parameters for readTempThresh function,reading the temperature alarm threshold of the selected PMUX card,"RDI_BEGIN();
+rdi.pmux(1)
+    .module(""02"").readTempThresh(70)
+    .execute();
+RDI_END();
+
+int tempTh = rdi.id(1).getTempThresh(""02"");","RDI_BEGIN();
+rdi.pmux(1)
+    .module(""02"").readTempThresh()
+    .execute();
+RDI_END();
+
+int tempTh = rdi.id(1).getTempThresh(""02"");"
+29,"Bug: Retrieving status before execute() completion and without proper synchronization
+- Result on site 1 might be inconsistent or stale
+- Result on site 1 might show previous state instead of {1,1}
+- Missing error handling for invalid pin addresses
+- Incorrect Begin & End",Retrieves the status of a pmux switch in both online mode and offline mode.rdi.route().retrievePmuxPinStatus(),"RDI_BEGIN();
+rdi.route().pin(""P0x01F1"").setOff().execute();
+rdi.route().pin(""P0x07F1"").setOn().execute();
+rdi.route().retrievePmuxPinStatus(""P0x01F1"");
+rdi.route().retrievePmuxPinStatus(""P0x07F1"");
+rdi.route().retrievePmuxPinStatus(""P0x08F1"");
+RDI_END();","RDI_BEGIN();
+rdi.route().pin(""P0x01F1"").setOff().execute();
+rdi.route().pin(""P0x07F1"").setOn().execute();
+RDI_END();
+rdi.route().retrievePmuxPinStatus(""P0x01F1"");
+// Result on site 1 is {0}
+rdi.route().retrievePmuxPinStatus(""P0x07F1"");
+// Result on site 1 is {1,1}, for the Link pin"
+2,vForce set to 35V which is not one of the allowed range according to the above documentation for an assumed AVI64,Specification of AVI64,"	rdi.alarm().pin(m_rMcd.sP_VS).enable(true);        //turn on VS alarm
+            //go back to default voltage
+            rdi.dc().pin(m_rMcd.sP_VS).vForce(13.5 V).vForceRange(35 V).iForceRange(50 mA).iClamp(-50 mA, 50 mA)
+                    .pin(m_rMcd.sP_LIN).vForce(13.5 V).vForceRange(30 V).iForceRange(5 uA).iClamp(-5 uA, 5 uA)
+                    .execute();
+            rdi.wait(1 ms);","	rdi.alarm().pin(m_rMcd.sP_VS).enable(true);        //turn on VS alarm
+            //go back to default voltage
+            rdi.dc().pin(m_rMcd.sP_VS).vForce(13.5 V).vForceRange(30 V).iForceRange(50 mA).iClamp(-50 mA, 50 mA)
+                    .pin(m_rMcd.sP_LIN).vForce(13.5 V).vForceRange(30 V).iForceRange(5 uA).iClamp(-5 uA, 5 uA)
+                    .execute();
+            rdi.wait(1 ms);"
+20, rdi.digCapBurstSiteUpload(true) should be set to true for uploads and as per documentation the max sample number can be 8192,"local control over the ""burst site upload"" capacity for digital capture results","rdi.digCapBurstSiteUpload(false);
+
+RDI_BEGIN();
+rdi.digCap(1)
+    .pin(""DATA1"").samples(9216)
+    .execute();
+RDI_END();","rdi.digCapBurstSiteUpload(true);
+
+RDI_BEGIN();
+rdi.digCap(1)
+    .pin(""DATA1"").samples(8192)
+    .execute();
+RDI_END();"
+11,Changed the argument unit and name,"Specifies the number of samples used to do the averaging when the measurement
+instrument is board ADC. The result of the measurement is averaged.
+For accuracy considerations, refer to member function number of samples() of API
+PPMU_PIN_MEASURE.","RDI_BEGIN();
+rdi.dc().pin(""dig1"").vForce(1).iMeans().iRange(2 mAh).execute(); //
+rdi.dc().pin(""dig2"").iForce(1 uA).vMeans().execute(); // average =
+RDI_END();","RDI_BEGIN();
+rdi.dc().pin(""dig1"").vForce(1).iMeas().iRange(2 mA).execute(); //
+rdi.dc().pin(""dig2"").iForce(1 uA).vMeas().execute(); // average =
+RDI_END();"
+3,"The key sentence in the manual is: ""The programmed force or clamp value must always match to the selected range. Violating this rule may lead to a range overflow warning.""
+vForce set to 31V which is above range, applies for AVI64/FVI16. This is configured somewhere else. For the sake of easiness we could tell the prompt we deal with an AVI64",Specification of AVI64,"//rdi.alarm().pin(m_rMcd.sP_MON).enable(true);    //turn on MON alarm
+rdi.alarm().pin(m_rMcd.sP_VS).enable(true);        //turn on VS alarm
+            //go back to default voltage
+            rdi.dc().pin(m_rMcd.sP_VS).vForce(31 V).vForceRange(30 V).iForceRange(50 mA).iClamp(-50 mA, 50 mA)
+                    .pin(m_rMcd.sP_LIN).vForce(13.5 V).vForceRange(30 V).iForceRange(5 uA).iClamp(-5 uA, 5 uA)
+                    .execute();
+            rdi.wait(1 ms);","//rdi.alarm().pin(m_rMcd.sP_MON).enable(true);    //turn on MON alarm
+rdi.alarm().pin(m_rMcd.sP_VS).enable(true);        //turn on VS alarm
+            //go back to default voltage
+            rdi.dc().pin(m_rMcd.sP_VS).vForce(30 V).vForceRange(30 V).iForceRange(50 mA).iClamp(-50 mA, 50 mA)
+                    .pin(m_rMcd.sP_LIN).vForce(13.5 V).vForceRange(30 V).iForceRange(5 uA).iClamp(-5 uA, 5 uA)
+                    .execute();
+            rdi.wait(1 ms);"
